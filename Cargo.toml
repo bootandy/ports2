@@ -1,0 +1,7 @@
+[package]
+name = "ports2"
+version = "0.1.0"
+authors = ["andy.boot <bootandy@gmail.com>"]
+
+[dependencies]
+pnet = "*"
