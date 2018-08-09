@@ -2,11 +2,11 @@ extern crate pnet;
 
 use pnet::datalink::{self, NetworkInterface};
 use pnet::datalink::Channel::Ethernet;
-use pnet::packet::{Packet, MutablePacket};
-use pnet::packet::ethernet::{EthernetPacket, MutableEthernetPacket};
+use pnet::packet::ethernet::EthernetPacket;
 use pnet::packet::ethernet::EtherTypes::{Arp, Ipv4, Ipv6, Rarp, Vlan, WakeOnLan};
 use pnet::packet::PrimitiveValues;
 use pnet::packet::ethernet::EtherType;
+use pnet::util::MacAddr;
 use std::env;
 use std::collections::HashMap;
 
@@ -42,28 +42,46 @@ impl PacketTracker {
                 Ipv6 => "Ipv6".to_string(),
                 _ => format!("Unknown {}", k),
             };
-            println!(" {} : {} ", print_k, v)
+            println!(" {:<15} : {} ", print_k, v)
         }
     }
 }
 
+fn mac_to_string(mac: Option<MacAddr>) -> String {
+    match mac {
+        Some(m) => m.to_string(),
+        None => "Unknown mac address".to_string()
+    }
+}
+fn print_my_options() {
+    println!("Run me with a name of a network interface");
+    println!("Here are your network interfaces");
+    println!("Name:       MAC:");
+    for i in datalink::interfaces().into_iter() {
+        println!("{:<9} {:?}", i.name, mac_to_string(i.mac));
+    };
+}
 
 // Invoke as echo <interface name>
 fn main() {
-    let interface_name = env::args().nth(1).unwrap();
+    if env::args().len() < 2 {
+        print_my_options();
+    } else {
+        doit();
+    }
+}
+
+fn doit() {
+    let interface_name = env::args().nth(1).unwrap_or("eth0".to_string());
     let interface_names_match =
         |iface: &NetworkInterface| iface.name == interface_name;
 
     // Find the network interface with the provided name
     let interfaces = datalink::interfaces();
-    let interface = interfaces.into_iter()
+    let interface_a = interfaces.into_iter()
                               .filter(interface_names_match)
-                              .next()
-                              .unwrap();
-
-    for i in datalink::interfaces().into_iter() {
-        println!("{:?}", i);
-    }
+                              .next();
+    let interface = interface_a.unwrap();
 
     let mut pt = PacketTracker::new();
 
@@ -84,26 +102,6 @@ fn main() {
             Ok(packet) => {
                 let packet = EthernetPacket::new(packet).unwrap();
                 pt.inspect_packet(packet);
-
-                // Constructs a single packet, the same length as the the one received,
-                // using the provided closure. This allows the packet to be constructed
-                // directly in the write buffer, without copying. If copying is not a
-                // problem, you could also use send_to.
-                //
-                // The packet is sent once the closure has finished executing.
-/*                tx.build_and_send(1, packet.packet().len(),
-                    &mut |mut new_packet| {
-                        //print!("HEllo packet send");
-                        let mut new_packet = MutableEthernetPacket::new(new_packet).unwrap();
-
-                        // Create a clone of the original packet
-                        new_packet.clone_from(&packet);
-
-                        // Switch the source and destination
-                        new_packet.set_source(packet.get_destination());
-                        new_packet.set_destination(packet.get_source());
-                        inspect_packet(new_packet);
-                });*/
             },
             Err(e) => {
                 // If an error occurs, we can handle it here
