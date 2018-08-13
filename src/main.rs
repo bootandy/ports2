@@ -7,9 +7,13 @@ use pnet::packet::ethernet::EtherTypes::{Arp, Ipv4, Ipv6, Rarp, Vlan, WakeOnLan}
 use pnet::packet::PrimitiveValues;
 use pnet::packet::ethernet::EtherType;
 use pnet::util::MacAddr;
+
 use std::env;
 use std::collections::HashMap;
 use std::cmp::max;
+use std::thread;
+use std::time::Duration;
+use std::time::SystemTime;
 
 
 const OLD_ETHERNET :u16 = 2047;
@@ -32,10 +36,10 @@ impl PacketTracker {
     }
 
     fn inspect_packet(&mut self, packet: EthernetPacket) {
-        println!("got packet: {:?}", packet);
-        println!("got packet dest: {:?}", packet.get_destination());
-        println!("got packet src : {:?}", packet.get_source());
-        println!("got packet type: {:?}", packet.get_ethertype());
+        //println!("got packet: {:?}", packet);
+        //println!("got packet dest: {:?}", packet.get_destination());
+        //println!("got packet src : {:?}", packet.get_source());
+        //println!("got packet type: {:?}", packet.get_ethertype());
         let packet_is_for_me = packet.get_source() == self.me.mac.unwrap() || packet.get_destination() == self.me.mac.unwrap();
         if self.just_me && !packet_is_for_me {
             return
@@ -114,12 +118,14 @@ fn doit(interface_name : &String, just_me: bool) {
         Err(e) => panic!("An error occurred when creating the datalink channel: {}", e)
     };
 
+    //print_thread(&pt);
     let mut count = 0;
+    let mut future = SystemTime::now() + Duration::new(5, 0);
     loop {
         count += 1;
-        if count > 30 {
+        /*if count > 30 {
             break
-        }
+        }*/
         match rx.next() {
             Ok(packet) => {
                 let packet = EthernetPacket::new(packet).unwrap();
@@ -130,7 +136,20 @@ fn doit(interface_name : &String, just_me: bool) {
                 panic!("An error occurred while reading: {}", e);
             }
         }
+        if future < SystemTime::now() {
+            pt.pretty_out();
+            future = SystemTime::now() + Duration::new(5, 0);
+        }
     }
     println!("{:?}", pt.counter);
     pt.pretty_out();
 }
+
+/*fn print_thread(pt: &PacketTracker) {
+    thread::spawn(|| {
+        loop {
+            thread::sleep(Duration::from_millis(1000 * 5));
+            pt.pretty_out();
+        }
+    });
+}*/
