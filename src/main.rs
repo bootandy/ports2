@@ -19,20 +19,23 @@ use std::time::SystemTime;
 const OLD_ETHERNET :u16 = 2047;
 
 struct PacketTracker {
-    counter: HashMap<u16, u16>,
-    is_my_box: HashMap<bool, u16>,
+    counter: HashMap<u16, u64>,
+    is_my_box: HashMap<bool, u64>,
     me: NetworkInterface,
     just_me: bool,
 }
 
 impl PacketTracker {
     fn new(iface: NetworkInterface, jm: bool) -> PacketTracker {
-        PacketTracker {
+        let mut pt = PacketTracker {
             counter: HashMap::new(),
             is_my_box: HashMap::new(),
             me: iface,
             just_me: jm,
-        }
+        };
+        pt.is_my_box.entry(true).or_insert(0);
+        pt.is_my_box.entry(false).or_insert(0);
+        pt
     }
 
     fn inspect_packet(&mut self, packet: EthernetPacket) {
@@ -49,11 +52,11 @@ impl PacketTracker {
         let v = max(OLD_ETHERNET, packet.get_ethertype().to_primitive_values().0);
         let c = self.counter.entry(v).or_insert(0);
         *c += 1;
-
     //    println!("got packet size: {:?}", MutableEthernetPacket::packet_size(&packet));
     }
 
-    fn pretty_out(&self) {
+    fn pretty_out(&mut self, start_time: &SystemTime) {
+        println!("Time from {:?} ", start_time);
         for (k, v) in self.counter.iter() {
             let print_k = match EtherType(*k) {
                 EtherType(OLD_ETHERNET) => "Pre ether2".to_string(),
@@ -67,7 +70,14 @@ impl PacketTracker {
             };
             println!(" {:<15} : {} ", print_k, v)
         }
-        println!(" forme : {:?} ", self.is_my_box)
+        if !self.just_me {
+            println!(" packets for me     : {:?} ", self.is_my_box[&true]);
+            println!(" packets for others : {:?} ", self.is_my_box[&false]);
+        }
+        self.counter.clear();
+        self.is_my_box.clear();
+        self.is_my_box.entry(true).or_insert(0);
+        self.is_my_box.entry(false).or_insert(0);
     }
 }
 
@@ -98,7 +108,12 @@ fn main() {
 }
 
 fn doit(interface_name : &String, just_me: bool) {
-    println!("hi {}", just_me);
+    println!("running packet monitor.{}", just_me);
+    if just_me {
+        println!("Just analysing packets for this box");
+    } else {
+        println!("Analysing all packets seen on network");
+    }
     let interface_names_match =
         |iface: &NetworkInterface| iface.name == *interface_name;
 
@@ -119,10 +134,10 @@ fn doit(interface_name : &String, just_me: bool) {
     };
 
     //print_thread(&pt);
-    let mut count = 0;
-    let mut future = SystemTime::now() + Duration::new(5, 0);
+    //let mut count = 0;
+    let mut start_counting_time = SystemTime::now();
     loop {
-        count += 1;
+        //count += 1;
         /*if count > 30 {
             break
         }*/
@@ -136,13 +151,11 @@ fn doit(interface_name : &String, just_me: bool) {
                 panic!("An error occurred while reading: {}", e);
             }
         }
-        if future < SystemTime::now() {
-            pt.pretty_out();
-            future = SystemTime::now() + Duration::new(5, 0);
+        if start_counting_time + Duration::new(5, 0) < SystemTime::now() {
+            pt.pretty_out(&start_counting_time);
+            start_counting_time = SystemTime::now()
         }
     }
-    println!("{:?}", pt.counter);
-    pt.pretty_out();
 }
 
 /*fn print_thread(pt: &PacketTracker) {
