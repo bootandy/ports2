@@ -39,10 +39,12 @@ impl PacketTracker {
     }
 
     fn inspect_packet(&mut self, packet: EthernetPacket) {
+        if packet.get_ethertype() == Ipv4 {
         //println!("got packet: {:?}", packet);
-        //println!("got packet dest: {:?}", packet.get_destination());
-        //println!("got packet src : {:?}", packet.get_source());
+            //println!("got packet dest: {:?}", packet.get_destination());
+            //println!("got packet src : {:?}", packet.get_source());
         //println!("got packet type: {:?}", packet.get_ethertype());
+        }
         let packet_is_for_me = packet.get_source() == self.me.mac.unwrap() || packet.get_destination() == self.me.mac.unwrap();
         if self.just_me && !packet_is_for_me {
             return
@@ -57,6 +59,7 @@ impl PacketTracker {
 
     fn pretty_out(&mut self, start_time: &SystemTime) {
         println!("Time from {:?} ", start_time);
+        println!("{:?}", self.me.ips);
         for (k, v) in self.counter.iter() {
             let print_k = match EtherType(*k) {
                 EtherType(OLD_ETHERNET) => "Pre ether2".to_string(),
@@ -108,7 +111,7 @@ fn main() {
 }
 
 fn doit(interface_name : &String, just_me: bool) {
-    println!("running packet monitor.{}", just_me);
+    println!("Running packet monitor");
     if just_me {
         println!("Just analysing packets for this box");
     } else {
