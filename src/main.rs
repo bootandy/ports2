@@ -100,18 +100,18 @@ fn main() {
     match env::args().nth(1) {
         None => print_my_options(),
         Some(interface_name) => {
-            let just_me = env::args().nth(2).unwrap_or("false".to_string());
+            let just_me = env::args().nth(2).unwrap_or_else(|| "false".to_string());
             doit(&interface_name, just_me.to_lowercase() == "true")
         }
     }
 }
 
-fn doit(interface_name: &String, just_me: bool) {
+fn doit(interface_name: &str, just_me: bool) {
     let interface_names_match = |iface: &NetworkInterface| iface.name == *interface_name;
 
     // Find the network interface with the provided name
     let interfaces = datalink::interfaces();
-    let interface_a = interfaces.into_iter().filter(interface_names_match).next();
+    let interface_a = interfaces.into_iter().find(interface_names_match);
 
     if let Some(interface) = interface_a {
         println!("Running packet monitor");
