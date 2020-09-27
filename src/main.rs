@@ -59,8 +59,9 @@ impl PacketTracker {
 
     fn pretty_out(&mut self, start_time: &SystemTime) {
         println!("Time from {:?} ", start_time);
-        println!("{:?}", self.me.ips);
+        println!("My IP: {:?}", self.me.ips);
         for (k, v) in self.counter.iter() {
+            #[allow(non_upper_case_globals)]
             let print_k = match EtherType(*k) {
                 EtherType(OLD_ETHERNET) => "Pre ether2".to_string(),
                 Arp => "Arp".to_string(),
@@ -91,7 +92,8 @@ fn mac_to_string(mac: Option<MacAddr>) -> String {
     }
 }
 fn print_my_options() {
-    println!("Run me with a name of a network interface");
+    println!("Run me as root with a name of a network interface");
+    println!("Example: sudo ports2 lo");
     println!("Here are your network interfaces");
     println!("Name:      MAC:");
     for i in datalink::interfaces().into_iter() {
